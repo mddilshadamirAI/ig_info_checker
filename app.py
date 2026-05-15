@@ -5,90 +5,88 @@ import pandas as pd
 import plotly.express as px
 from datetime import datetime
 
-# Page Configuration
-st.set_page_config(page_title="IG Insights Pro", page_icon="📸", layout="wide")
+st.set_page_config(page_title="IG Deep Insight", page_icon="🔍", layout="wide")
 
-st.title("📸 Instagram Universal Analyzer")
-st.info("Upload any Instagram Data ZIP file. This version automatically finds your data.")
+st.title("🔍 Instagram Deep Data Scanner")
+st.info("Upload your ZIP. This version searches every hidden folder in your file.")
 
-uploaded_file = st.file_uploader("Upload your Instagram ZIP", type="zip")
+uploaded_file = st.file_uploader("Upload Instagram ZIP", type="zip")
 
-def find_ig_data(z):
-    all_files = z.namelist()
-    following_data = []
-    followers_data = []
-
-    for file_path in all_files:
+def deep_scan_zip(z):
+    following_list = []
+    followers_list = []
+    
+    for file_path in z.namelist():
         if file_path.endswith('.json'):
-            # Check for Following
-            if 'following' in file_path.lower() and 'suggested' not in file_path.lower():
-                try:
-                    content = json.load(z.open(file_path))
-                    # Extract list regardless of key name
-                    data_list = content.get('relationships_following', content)
-                    if isinstance(data_list, dict): 
-                        data_list = data_list.get(list(data_list.keys())[0], [])
-                    following_data.extend(data_list)
-                except: continue
-
-            # Check for Followers
-            if 'followers' in file_path.lower():
-                try:
-                    content = json.load(z.open(file_path))
-                    data_list = content.get('relationships_followers', content)
-                    if isinstance(data_list, dict):
-                        data_list = data_list.get(list(data_list.keys())[0], [])
-                    followers_data.extend(data_list)
-                except: continue
-
-    return following_data, followers_data
+            try:
+                with z.open(file_path) as f:
+                    data = json.load(f)
+                    
+                    # Detect Following Data (looking for the structure, not the name)
+                    if "relationships_following" in str(data) or "following" in file_path.lower():
+                        # Extract the actual list from various possible keys
+                        raw = data.get('relationships_following', data)
+                        if isinstance(raw, dict): raw = raw.get(list(raw.keys())[0], [])
+                        following_list.extend(raw)
+                        
+                    # Detect Followers Data
+                    if "relationships_followers" in str(data) or "followers" in file_path.lower():
+                        raw = data.get('relationships_followers', data)
+                        if isinstance(raw, dict): raw = raw.get(list(raw.keys())[0], [])
+                        followers_list.extend(raw)
+            except:
+                continue
+    return following_list, followers_list
 
 if uploaded_file:
-    try:
-        with zipfile.ZipFile(uploaded_file) as z:
-            following_raw, followers_raw = find_ig_data(z)
+    with zipfile.ZipFile(uploaded_file) as z:
+        # Show the user what's inside their zip if it fails
+        all_files = z.namelist()
+        
+        with st.expander("See Files Found in ZIP"):
+            st.write(all_files)
 
-        if not following_raw or not followers_raw:
-            st.error("No follower/following data found. Ensure you requested your data in JSON format.")
+        ing, ers = deep_scan_zip(z)
+
+        if not ing or not ers:
+            st.error("🚨 NO DATA FOUND INSIDE ZIP.")
+            st.write("Current Files in ZIP:", all_files[:10], "...and more.")
+            st.warning("IMPORTANT: When you requested the download, did you click 'JSON' or 'HTML'? This script only works with JSON.")
             st.stop()
 
-        # Clean Data
-        def clean(data):
-            return pd.DataFrame([{
-                'username': item['string_list_data'][0]['value'],
-                'timestamp': datetime.fromtimestamp(item['string_list_data'][0]['timestamp'])
-            } for item in data if 'string_list_data' in item])
+        # Cleaner function for IG's weird nested structure
+        def process(rows):
+            results = []
+            for item in rows:
+                try:
+                    # Logic to find the username and timestamp in various IG versions
+                    user_data = item.get('string_list_data', [{}])[0]
+                    results.append({
+                        'username': user_data.get('value', 'Unknown'),
+                        'timestamp': datetime.fromtimestamp(user_data.get('timestamp', 0))
+                    })
+                except: continue
+            return pd.DataFrame(results)
 
-        df_ing = clean(following_raw)
-        df_ers = clean(followers_raw)
+        df_ing = process(ing).drop_duplicates('username')
+        df_ers = process(ers).drop_duplicates('username')
 
-        # Logic
-        ing_set = set(df_ing['username'])
-        ers_set = set(df_ers['username'])
+        # Calculation
+        not_back = set(df_ing['username']) - set(df_ers['username'])
         
-        unfollowers = ing_set - ers_set
-        fans = ers_set - ing_set
-
-        # UI
-        c1, c2, c3 = st.columns(3)
-        c1.metric("Following", len(ing_set))
-        c2.metric("Followers", len(ers_set))
-        c3.metric("Unfollowers", len(unfollowers))
-
-        t1, t2 = st.tabs(["📊 Timeline", "🐍 Lists"])
+        st.success(f"Successfully found {len(df_ing)} Following and {len(df_ers)} Followers!")
         
-        with t1:
+        c1, c2 = st.columns(2)
+        with c1:
+            st.metric("Total Unfollowers", len(not_back))
+            st.subheader("🐍 They don't follow back:")
+            st.write(list(not_back))
+            
+        with c2:
+            st.subheader("📈 Follow History")
             df_ing['Date'] = df_ing['timestamp'].dt.date
-            fig = px.area(df_ing.groupby('Date').size().reset_index(name='Count'), 
-                          x='Date', y='Count', title="Follow Activity")
-            st.plotly_chart(fig, use_container_width=True)
+            chart_data = df_ing.groupby('Date').size().reset_index(name='Count')
+            st.line_chart(chart_data.set_index('Date'))
 
-        with t2:
-            col_a, col_b = st.columns(2)
-            col_a.subheader("Doesn't Follow Back")
-            col_a.write(list(unfollowers))
-            col_b.subheader("Your Fans")
-            col_b.write(list(fans))
-
-    except Exception as e:
-        st.error(f"Processing Error: {e}")
+else:
+    st.write("Please upload your file to begin.")
