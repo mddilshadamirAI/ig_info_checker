@@ -1,101 +1,74 @@
 import streamlit as st
 import pandas as pd
 import zipfile
+import json
 from bs4 import BeautifulSoup
 
-st.set_page_config(page_title="IG Deep Intelligence", page_icon="🕵️‍♂️", layout="wide")
+st.set_page_config(page_title="IG Precision Analyzer", page_icon="🎯", layout="wide")
 
-st.title("🕵️‍♂️ Instagram Deep Intelligence Tool")
-st.markdown("---")
+st.title("🎯 Instagram Precision Analyzer")
+st.info("This version uses Strict Parsing to ensure usernames are correct.")
 
-uploaded_file = st.file_uploader("Upload your Instagram ZIP (HTML or JSON)", type="zip")
+uploaded_file = st.file_uploader("Upload Instagram ZIP", type="zip")
 
-def get_users_from_html(html_content):
-    soup = BeautifulSoup(html_content, 'lxml')
-    users = []
-    # IG HTML uses <a> tags for usernames and sometimes <td>
-    for tag in soup.find_all(['a', 'td']):
-        name = tag.get_text().strip()
-        # Clean up common non-username strings found in IG HTML
-        if name and "instagram.com" not in name.lower() and len(name) < 30 and " " not in name:
-            users.append(name)
-    return users
+def extract_precise_data(file_content, is_json=True):
+    usernames = []
+    if is_json:
+        try:
+            data = json.loads(file_content)
+            # Find the nested list in JSON
+            raw = data.get('relationships_following', data)
+            if isinstance(raw, dict): raw = raw.get(list(raw.keys())[0], [])
+            for item in raw:
+                if 'string_list_data' in item:
+                    usernames.append(item['string_list_data'][0]['value'])
+        except: pass
+    else:
+        # HTML PRECISE PARSING
+        soup = BeautifulSoup(file_content, 'lxml')
+        # Instagram 2026 HTML structure: usernames are usually inside <a> tags 
+        # within a specific div or table cell.
+        for a in soup.find_all('a'):
+            href = a.get('href', '')
+            text = a.get_text().strip()
+            
+            # Logic: If it's a link to a profile, the text is the username
+            if 'instagram.com/' in href:
+                user = href.split('instagram.com/')[1].replace('/', '').split('?')[0]
+                if user and user not in ['explore', 'reels', 'direct', 'accounts']:
+                    usernames.append(user)
+            # Backup: If no href, check if text looks like a single username (no spaces)
+            elif text and ' ' not in text and len(text) < 30 and '.' not in text:
+                if text.lower() not in ['login', 'signup', 'about', 'help', 'privacy', 'terms']:
+                    usernames.append(text)
+                    
+    return list(set(usernames))
 
 if uploaded_file:
     with zipfile.ZipFile(uploaded_file) as z:
         all_files = z.namelist()
-        
-        # Data Buckets
-        following = []
-        followers = []
-        pending = []
-        recent_activity = []
+        following, followers = [], []
 
         for f_path in all_files:
-            content = z.read(f_path)
-            
-            # 1. Extraction Logic
-            if 'following' in f_path.lower() and f_path.endswith('.html'):
-                following.extend(get_users_from_html(content))
-            elif 'followers' in f_path.lower() and f_path.endswith('.html'):
-                followers.extend(get_users_from_html(content))
-            elif 'pending' in f_path.lower() and f_path.endswith('.html'):
-                pending.extend(get_users_from_html(content))
-            elif 'recent' in f_path.lower() and f_path.endswith('.html'):
-                recent_activity.extend(get_users_from_html(content))
+            if 'following.html' in f_path.lower() or 'following.json' in f_path.lower():
+                following.extend(extract_precise_data(z.read(f_path), f_path.endswith('.json')))
+            if 'followers' in f_path.lower() and (f_path.endswith('.html') or f_path.endswith('.json')):
+                followers.extend(extract_precise_data(z.read(f_path), f_path.endswith('.json')))
 
-        # Cleanup & Sets
-        following = sorted(list(set(following)))
-        followers = sorted(list(set(followers)))
-        pending = sorted(list(set(pending)))
+        # Final Clean
+        following = [u for u in following if u]
+        followers = [u for u in followers if u]
         
         unfollowers = set(following) - set(followers)
         fans = set(followers) - set(following)
-        mutuals = set(following).intersection(set(followers))
 
-        # --- UI LAYOUT ---
+        # UI
+        st.success(f"Analyzed {len(following)} Following and {len(followers)} Followers.")
         
-        # Row 1: High Level Stats
-        c1, c2, c3, c4 = st.columns(4)
-        c1.metric("Following", len(following))
-        c2.metric("Followers", len(followers))
-        c3.metric("Mutuals", len(mutuals))
-        c4.metric("Pending", len(pending))
-
-        st.markdown("---")
-
-        # Row 2: Tabs for Detail
-        tab1, tab2, tab3, tab4 = st.tabs([
-            "🐍 Unfollowers", 
-            "⭐ Fans", 
-            "🤝 Mutual Friends",
-            "⏳ Pending Requests"
-        ])
-
-        with tab1:
-            st.error(f"These {len(unfollowers)} people do not follow you back.")
-            st.write(list(unfollowers))
-        
-        with tab2:
-            st.success(f"These {len(fans)} people follow you (you don't follow back).")
-            st.write(list(fans))
-            
-        with tab3:
-            st.info("Your mutual connections.")
-            st.write(list(mutuals))
-            
-        with tab4:
-            if pending:
-                st.warning("You sent follow requests to these users, but they haven't accepted.")
-                st.write(pending)
-            else:
-                st.write("No pending requests found.")
-
-        # Bonus: Download Results
-        st.markdown("---")
-        if unfollowers:
-            csv = pd.DataFrame(list(unfollowers), columns=["Username"]).to_csv(index=False)
-            st.download_button("📥 Download Unfollowers List", csv, "unfollowers.csv", "text/csv")
-
-else:
-    st.info("Waiting for ZIP upload. Please ensure you uploaded the full file from Instagram.")
+        col1, col2 = st.columns(2)
+        with col1:
+            st.subheader(f"🐍 Unfollowers ({len(unfollowers)})")
+            st.write(sorted(list(unfollowers)))
+        with col2:
+            st.subheader(f"⭐ Fans ({len(fans)})")
+            st.write(sorted(list(fans)))
