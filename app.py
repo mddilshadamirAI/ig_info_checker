@@ -1,74 +1,93 @@
 import streamlit as st
-import pandas as pd
-import zipfile
 import json
-from bs4 import BeautifulSoup
+import zipfile
+import pandas as pd
+import plotly.express as px
+from datetime import datetime
 
-st.set_page_config(page_title="IG Precision Analyzer", page_icon="🎯", layout="wide")
+st.set_page_config(page_title="IG Full Data Pro", page_icon="📈", layout="wide")
 
-st.title("🎯 Instagram Precision Analyzer")
-st.info("This version uses Strict Parsing to ensure usernames are correct.")
+st.title("📈 Instagram Full Analytics (JSON Edition)")
+st.write("Extracting every detail including relationships and connection timelines.")
 
-uploaded_file = st.file_uploader("Upload Instagram ZIP", type="zip")
+uploaded_file = st.file_uploader("Upload your Instagram JSON ZIP", type="zip")
 
-def extract_precise_data(file_content, is_json=True):
-    usernames = []
-    if is_json:
-        try:
-            data = json.loads(file_content)
-            # Find the nested list in JSON
-            raw = data.get('relationships_following', data)
-            if isinstance(raw, dict): raw = raw.get(list(raw.keys())[0], [])
-            for item in raw:
-                if 'string_list_data' in item:
-                    usernames.append(item['string_list_data'][0]['value'])
-        except: pass
-    else:
-        # HTML PRECISE PARSING
-        soup = BeautifulSoup(file_content, 'lxml')
-        # Instagram 2026 HTML structure: usernames are usually inside <a> tags 
-        # within a specific div or table cell.
-        for a in soup.find_all('a'):
-            href = a.get('href', '')
-            text = a.get_text().strip()
+def process_ig_json(z):
+    all_files = z.namelist()
+    
+    # 1. FIND AND LOAD FOLLOWING
+    following_path = next((f for f in all_files if 'following.json' in f), None)
+    with z.open(following_path) as f:
+        f_data = json.load(f)['relationships_following']
+    
+    # 2. FIND AND LOAD FOLLOWERS
+    follower_files = [f for f in all_files if 'followers_' in f]
+    ers_data = []
+    for f_path in follower_files:
+        with z.open(f_path) as f:
+            ers_data.extend(json.load(f))
             
-            # Logic: If it's a link to a profile, the text is the username
-            if 'instagram.com/' in href:
-                user = href.split('instagram.com/')[1].replace('/', '').split('?')[0]
-                if user and user not in ['explore', 'reels', 'direct', 'accounts']:
-                    usernames.append(user)
-            # Backup: If no href, check if text looks like a single username (no spaces)
-            elif text and ' ' not in text and len(text) < 30 and '.' not in text:
-                if text.lower() not in ['login', 'signup', 'about', 'help', 'privacy', 'terms']:
-                    usernames.append(text)
-                    
-    return list(set(usernames))
+    # 3. CONVERT TO CLEAN DATAFRAMES
+    def to_df(raw_list):
+        return pd.DataFrame([{
+            'username': item['string_list_data'][0]['value'],
+            'timestamp': datetime.fromtimestamp(item['string_list_data'][0]['timestamp'])
+        } for item in raw_list])
+
+    df_ing = to_df(f_data)
+    df_ers = to_df(ers_data)
+    
+    return df_ing, df_ers
 
 if uploaded_file:
-    with zipfile.ZipFile(uploaded_file) as z:
-        all_files = z.namelist()
-        following, followers = [], []
-
-        for f_path in all_files:
-            if 'following.html' in f_path.lower() or 'following.json' in f_path.lower():
-                following.extend(extract_precise_data(z.read(f_path), f_path.endswith('.json')))
-            if 'followers' in f_path.lower() and (f_path.endswith('.html') or f_path.endswith('.json')):
-                followers.extend(extract_precise_data(z.read(f_path), f_path.endswith('.json')))
-
-        # Final Clean
-        following = [u for u in following if u]
-        followers = [u for u in followers if u]
+    try:
+        df_ing, df_ers = process_ig_json(zipfile.ZipFile(uploaded_file))
         
-        unfollowers = set(following) - set(followers)
-        fans = set(followers) - set(following)
-
-        # UI
-        st.success(f"Analyzed {len(following)} Following and {len(followers)} Followers.")
+        # LOGIC SETS
+        ing_set = set(df_ing['username'])
+        ers_set = set(df_ers['username'])
         
-        col1, col2 = st.columns(2)
-        with col1:
-            st.subheader(f"🐍 Unfollowers ({len(unfollowers)})")
-            st.write(sorted(list(unfollowers)))
-        with col2:
-            st.subheader(f"⭐ Fans ({len(fans)})")
-            st.write(sorted(list(fans)))
+        unfollowers = ing_set - ers_set
+        fans = ers_set - ing_set
+        mutuals = ing_set.intersection(ers_set)
+
+        # UI METRICS
+        m1, m2, m3, m4 = st.columns(4)
+        m1.metric("Following", len(ing_set))
+        m2.metric("Followers", len(ers_set))
+        m3.metric("Unfollowers", len(unfollowers))
+        m4.metric("Mutuals", len(mutuals))
+
+        # --- SECTION: TIMELINE ---
+        st.subheader("📊 Your Instagram Growth Timeline")
+        df_ing['Date'] = df_ing['timestamp'].dt.to_period('M').astype(str)
+        timeline = df_ing.groupby('Date').size().reset_index(name='Count')
+        
+        fig = px.area(timeline, x='Date', y='Count', title="When you followed your current connections",
+                      color_discrete_sequence=['#e1306c'])
+        st.plotly_chart(fig, use_container_width=True)
+
+        # --- SECTION: DEEP LISTS ---
+        tab1, tab2, tab3 = st.tabs(["🐍 Unfollowers", "🤝 Mutuals & Fans", "📅 Detailed History"])
+        
+        with tab1:
+            st.warning(f"Total: {len(unfollowers)} people")
+            st.write(list(unfollowers))
+            
+        with tab2:
+            col_a, col_b = st.columns(2)
+            with col_a:
+                st.info(f"Mutual Friends ({len(mutuals)})")
+                st.write(list(mutuals))
+            with col_b:
+                st.success(f"Fans ({len(fans)})")
+                st.write(list(fans))
+                
+        with tab3:
+            st.subheader("Full Connection Log")
+            st.write("This shows every account you follow and exactly when you followed them.")
+            st.dataframe(df_ing.sort_values('timestamp', ascending=False), use_container_width=True)
+
+    except Exception as e:
+        st.error(f"Error: {e}")
+        st.write("Ensure your ZIP contains 'following.json' and 'followers_1.json' in JSON format.")
