@@ -8,7 +8,7 @@ from datetime import datetime
 # Page Configuration
 st.set_page_config(page_title="IG Insights Pro", page_icon="📸", layout="wide")
 
-# Custom CSS for a better UI
+# Custom CSS
 st.markdown("""
     <style>
     .main { background-color: #fafafa; }
@@ -24,16 +24,43 @@ uploaded_file = st.file_uploader("Upload your connections.zip", type="zip")
 
 def get_data_from_zip(zip_file):
     with zipfile.ZipFile(zip_file) as z:
-        # Load following
-        following_raw = json.load(z.open('connections/followers_and_following/following.json'))
-        # Load followers (Note: IG sometimes splits followers into followers_1.json, etc.)
-        follower_files = [f for f in z.namelist() if 'followers_' in f and f.endswith('.json')]
+        all_files = z.namelist()
         
+        # SMART SEARCH: Find the files regardless of folder structure
+        following_path = next((f for f in all_files if 'following.json' in f), None)
+        follower_paths = [f for f in all_files if 'followers_' in f and f.endswith('.json')]
+        
+        if not following_path:
+            st.error("❌ Could not find 'following.json'. Ensure you selected 'JSON' format in Instagram Settings.")
+            st.stop()
+        if not follower_paths:
+            st.error("❌ Could not find any 'followers_x.json' files.")
+            st.stop()
+
+        # Load following
+        following_raw = json.load(z.open(following_path))
+        # Handle different IG JSON versions (sometimes it's under 'relationships_following', sometimes others)
+        if isinstance(following_raw, dict) and 'relationships_following' in following_raw:
+            following_list = following_raw['relationships_following']
+        elif isinstance(following_raw, list):
+            following_list = following_raw
+        else:
+            # Fallback for newer 2026 formats
+            first_key = list(following_raw.keys())[0]
+            following_list = following_raw[first_key]
+        
+        # Load followers (handles multiple files like followers_1.json, followers_2.json)
         followers_list = []
-        for f in follower_files:
-            followers_list.extend(json.load(z.open(f)))
+        for f in follower_paths:
+            data = json.load(z.open(f))
+            # Some formats wrap followers in a list directly, others use a dict
+            if isinstance(data, list):
+                followers_list.extend(data)
+            else:
+                first_key = list(data.keys())[0]
+                followers_list.extend(data[first_key])
             
-        return following_raw['relationships_following'], followers_list
+        return following_list, followers_list
 
 if uploaded_file:
     try:
@@ -65,28 +92,24 @@ if uploaded_file:
         col3.metric("Not Following Back", len(not_following_back), delta_color="inverse")
         col4.metric("Fans", len(fans))
 
-        # 4. Tabs for Organization
+        # 4. Tabs
         tab1, tab2, tab3 = st.tabs(["📊 Timeline & Trends", "🐍 Unfollowers", "⭐ Fans & Mutuals"])
 
         with tab1:
             st.subheader("Your Instagram Growth Timeline")
-            # Grouping following by month for the chart
             following_df['Month-Year'] = following_df['timestamp'].dt.to_period('M').astype(str)
             timeline_data = following_df.groupby('Month-Year').size().reset_index(name='Count')
             
             fig = px.line(timeline_data, x='Month-Year', y='Count', title='Account Connection Activity Over Time',
                           labels={'Count': 'New Follows', 'Month-Year': 'Date'},
-                          line_shape='spline', render_mode='svg')
-            fig.update_traces(line_color='#e1306c')
+                          line_shape='spline')
+            fig.update_traces(line_color='#e1306c', line_width=4)
             st.plotly_chart(fig, use_container_width=True)
-
-            st.write("This chart shows when you were most active in following new accounts.")
 
         with tab2:
             st.subheader("People who don't follow you back")
             if not_following_back:
-                # Create a dataframe for a nice table
-                df_unfollowers = following_df[following_df['username'].isin(not_following_back)]
+                df_unfollowers = following_df[following_df['username'].isin(not_following_back)].sort_values('timestamp', ascending=False)
                 st.dataframe(df_unfollowers[['username', 'timestamp']], use_container_width=True)
             else:
                 st.success("Everyone follows you back! 🎉")
@@ -94,17 +117,15 @@ if uploaded_file:
         with tab3:
             col_fans, col_mut = st.columns(2)
             with col_fans:
-                st.subheader("Your Fans")
-                st.caption("They follow you, but you don't follow them.")
+                st.subheader("Your Fans (Followers you don't follow back)")
                 st.write(list(fans))
-            
             with col_mut:
                 st.subheader("Mutual Friends")
-                st.caption("You both follow each other.")
                 st.write(list(mutuals))
 
     except Exception as e:
-        st.error(f"Error processing file: {e}. Make sure you uploaded the correct JSON ZIP from Instagram.")
+        st.error(f"Error processing file: {e}")
+        st.warning("Note: Ensure you downloaded 'JSON' format, not HTML.")
 
 else:
-    st.info("Waiting for file upload...")
+    st.info("Please upload the ZIP file you received from Instagram.")
