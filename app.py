@@ -1,92 +1,77 @@
 import streamlit as st
-import json
-import zipfile
 import pandas as pd
+import zipfile
+import json
+from bs4 import BeautifulSoup
 import plotly.express as px
-from datetime import datetime
 
-st.set_page_config(page_title="IG Deep Insight", page_icon="🔍", layout="wide")
+st.set_page_config(page_title="Universal IG Analyzer", page_icon="📸")
 
-st.title("🔍 Instagram Deep Data Scanner")
-st.info("Upload your ZIP. This version searches every hidden folder in your file.")
+st.title("📸 Universal Instagram Analyzer")
+st.info("Upload your ZIP. Supports both HTML and JSON formats.")
 
 uploaded_file = st.file_uploader("Upload Instagram ZIP", type="zip")
 
-def deep_scan_zip(z):
-    following_list = []
-    followers_list = []
-    
-    for file_path in z.namelist():
-        if file_path.endswith('.json'):
-            try:
-                with z.open(file_path) as f:
-                    data = json.load(f)
-                    
-                    # Detect Following Data (looking for the structure, not the name)
-                    if "relationships_following" in str(data) or "following" in file_path.lower():
-                        # Extract the actual list from various possible keys
-                        raw = data.get('relationships_following', data)
-                        if isinstance(raw, dict): raw = raw.get(list(raw.keys())[0], [])
-                        following_list.extend(raw)
-                        
-                    # Detect Followers Data
-                    if "relationships_followers" in str(data) or "followers" in file_path.lower():
-                        raw = data.get('relationships_followers', data)
-                        if isinstance(raw, dict): raw = raw.get(list(raw.keys())[0], [])
-                        followers_list.extend(raw)
-            except:
-                continue
-    return following_list, followers_list
+def extract_usernames(file_content, is_json=True):
+    usernames = []
+    if is_json:
+        try:
+            data = json.loads(file_content)
+            # Find the list of users in nested JSON
+            raw_list = data.get('relationships_following', data)
+            if isinstance(raw_list, dict):
+                raw_list = raw_list.get(list(raw_list.keys())[0], [])
+            for item in raw_list:
+                if 'string_list_data' in item:
+                    usernames.append(item['string_list_data'][0]['value'])
+        except: pass
+    else:
+        # Parse HTML using BeautifulSoup
+        soup = BeautifulSoup(file_content, 'lxml')
+        # Instagram HTML puts usernames in <a> tags
+        for a in soup.find_all('a'):
+            name = a.get_text().strip()
+            if name and "instagram.com" not in name.lower():
+                usernames.append(name)
+    return usernames
 
 if uploaded_file:
     with zipfile.ZipFile(uploaded_file) as z:
-        # Show the user what's inside their zip if it fails
         all_files = z.namelist()
-        
-        with st.expander("See Files Found in ZIP"):
-            st.write(all_files)
+        following = []
+        followers = []
 
-        ing, ers = deep_scan_zip(z)
-
-        if not ing or not ers:
-            st.error("🚨 NO DATA FOUND INSIDE ZIP.")
-            st.write("Current Files in ZIP:", all_files[:10], "...and more.")
-            st.warning("IMPORTANT: When you requested the download, did you click 'JSON' or 'HTML'? This script only works with JSON.")
-            st.stop()
-
-        # Cleaner function for IG's weird nested structure
-        def process(rows):
-            results = []
-            for item in rows:
-                try:
-                    # Logic to find the username and timestamp in various IG versions
-                    user_data = item.get('string_list_data', [{}])[0]
-                    results.append({
-                        'username': user_data.get('value', 'Unknown'),
-                        'timestamp': datetime.fromtimestamp(user_data.get('timestamp', 0))
-                    })
-                except: continue
-            return pd.DataFrame(results)
-
-        df_ing = process(ing).drop_duplicates('username')
-        df_ers = process(ers).drop_duplicates('username')
-
-        # Calculation
-        not_back = set(df_ing['username']) - set(df_ers['username'])
-        
-        st.success(f"Successfully found {len(df_ing)} Following and {len(df_ers)} Followers!")
-        
-        c1, c2 = st.columns(2)
-        with c1:
-            st.metric("Total Unfollowers", len(not_back))
-            st.subheader("🐍 They don't follow back:")
-            st.write(list(not_back))
+        for f_path in all_files:
+            # Check for Following files
+            if 'following' in f_path.lower():
+                is_json = f_path.endswith('.json')
+                following.extend(extract_usernames(z.read(f_path), is_json))
             
-        with c2:
-            st.subheader("📈 Follow History")
-            df_ing['Date'] = df_ing['timestamp'].dt.date
-            chart_data = df_ing.groupby('Date').size().reset_index(name='Count')
-            st.line_chart(chart_data.set_index('Date'))
+            # Check for Followers files
+            if 'followers' in f_path.lower():
+                is_json = f_path.endswith('.json')
+                followers.extend(extract_usernames(z.read(f_path), is_json))
 
-else:
-    st.write("Please upload your file to begin.")
+        # Cleanup
+        following = sorted(list(set(following)))
+        followers = sorted(list(set(followers)))
+
+        if not following or not followers:
+            st.error("No data found. Ensure you selected 'Followers and Following' during download.")
+        else:
+            unfollowers = set(following) - set(followers)
+            fans = set(followers) - set(following)
+
+            # UI Metrics
+            c1, c2, c3 = st.columns(3)
+            c1.metric("Following", len(following))
+            c2.metric("Followers", len(followers))
+            c3.metric("Unfollowers", len(unfollowers), delta_color="inverse")
+
+            tab1, tab2 = st.tabs(["🐍 Unfollowers", "⭐ Fans"])
+            with tab1:
+                st.subheader("People who don't follow you back")
+                st.write(list(unfollowers))
+            with tab2:
+                st.subheader("Your Fans (They follow, you don't)")
+                st.write(list(fans))
