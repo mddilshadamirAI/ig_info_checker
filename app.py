@@ -6,19 +6,32 @@ import random
 st.set_page_config(
     page_title="InstaGrid Studio Pro | Content Planner",
     page_icon="🔮",
-    layout="wide" # Switched to wide mode to create a modern 2-column workspace layout
+    layout="wide"
 )
 
-# 🔒 Pro UI Style Adjustments Sheet Variable
+# 🔒 TRIPLE-GUARDED PRO CSS: Specifically shields internal widgets from text overlaps
 pro_css = """
 <style>
+/* 1. Global App Deep Dark Canvas Background */
 div[data-testid="stAppViewContainer"], .main {
     background: radial-gradient(circle at top left, #1e1b4b, #0b0f19, #020617) !important;
 }
-h1, h2, h3, h4, p, span, label, div[data-testid="stMarkdownContainer"] p {
+
+/* 2. Target Text ONLY within explicit markdown segments, headers, or our phone frame */
+h1, h2, h3, h4, .phone-frame p, .phone-frame span, div[data-testid="stMarkdownContainer"] p {
     color: #f1f5f9 !important;
     font-family: '-apple-system', BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif !important;
 }
+
+/* 3. CRITICAL BUG FIX: Reset Streamlit file uploader native button text properties to default */
+div[data-testid="stFileUploader"] button {
+    color: inherit !important;
+}
+div[data-testid="stFileUploaderDropzone"] div {
+    color: #94a3b8 !important;
+}
+
+/* 4. Glassmorphism Profile Frame Layout */
 .phone-frame {
     background: #090d16;
     padding: 24px;
@@ -27,14 +40,6 @@ h1, h2, h3, h4, p, span, label, div[data-testid="stMarkdownContainer"] p {
     box-shadow: 0 30px 60px rgba(0, 0, 0, 0.8);
     max-width: 410px;
     margin: 0 auto;
-}
-.meta-card {
-    background: rgba(30, 41, 59, 0.4);
-    backdrop-filter: blur(12px);
-    border-radius: 20px;
-    border: 1px solid rgba(255, 255, 255, 0.05);
-    padding: 25px;
-    margin-bottom: 20px;
 }
 .insta-badge {
     background: linear-gradient(45deg, #f09433 0%, #e6683c 25%, #dc2743 50%, #cc2366 75%, #bc1888 100%);
@@ -48,18 +53,18 @@ h1, h2, h3, h4, p, span, label, div[data-testid="stMarkdownContainer"] p {
 """
 st.markdown(pro_css, unsafe_allow_html=True)
 
-# App Core Memory Framework
-if "grid_images" not in st.session_state:
-    st.session_state.grid_images = []
-if "content_metadata" not in st.session_state:
-    st.session_state.content_metadata = {}
-
 # Pre-programmed Hashtag Pools for the Mix Engine Tool
 HASHTAG_POOLS = {
     "Tech & Coding": ["#developer", "#programming", "#codinglife", "#javascript", "#python", "#webdev", "#softwareengineering", "#buildinpublic", "#uidesign"],
     "Business & SaaS": ["#entrepreneur", "#saas", "#solopreneur", "#indiehackers", "#marketingtips", "#growthhacking", "#startup", "#founder", "#businessowner"],
     "Local Service Shop": ["#acrepair", "#hvac", "#localservice", "#airconditioning", "#maintenance", "#homeservice", "#smallbusiness", "#supportlocal"]
 }
+
+# App Core Memory Framework
+if "grid_images" not in st.session_state:
+    st.session_state.grid_images = []
+if "content_metadata" not in st.session_state:
+    st.session_state.content_metadata = {}
 
 # --- MAIN PAGE HEADLINE ---
 st.title("🔮 InstaGrid Studio Pro")
@@ -159,7 +164,7 @@ with workspace_right:
             st.markdown("#### 📝 Metadata Architect & Copywriter Hub")
             edit_slot = st.selectbox("Choose a layout slot to write copy for:", options=range(len(st.session_state.grid_images)))
             
-            # Initialize slot dictionary memories structures paths models keys loops
+            # Initialize slot dictionary memories
             if edit_slot not in st.session_state.content_metadata:
                 st.session_state.content_metadata[edit_slot] = {"caption": "", "date": None, "hashtags": ""}
             
@@ -180,7 +185,7 @@ with workspace_right:
                 
             schedule_date = st.date_input("Target Post Deployment Date Target line:", value=current_meta["date"])
             
-            # Save local changes values loops inside tracking state configuration registers keys
+            # Save local changes
             st.session_state.content_metadata[edit_slot] = {
                 "caption": caption_text,
                 "date": schedule_date,
