@@ -8,19 +8,21 @@ st.set_page_config(
     layout="centered"
 )
 
-# 🔒 Clean Custom CSS Variable (Safely isolated to prevent line parsing TypeErrors)
+# 🔒 SCOPED CSS: Targets exact structural components to protect native widgets
 custom_css = """
 <style>
-.main {
+/* Targets ONLY the background wrapper panels of the application layout */
+div[data-testid="stAppViewContainer"], .main {
     background: radial-gradient(circle at top, #1e1b4b, #0f172a, #020617) !important;
 }
-div[data-testid="stAppViewContainer"] {
-    background: radial-gradient(circle at top, #1e1b4b, #0f172a, #020617) !important;
-}
-h1, h2, h3, p, span, label {
+
+/* Explicitly style text ONLY inside our phone card structure to prevent button bugs */
+.phone-mock h1, .phone-mock h2, .phone-mock h3, .phone-mock p, .phone-mock span {
     color: #f8fafc !important;
     font-family: '-apple-system', BlinkMacSystemFont, sans-serif !important;
 }
+
+/* Clean Custom Glassmorphism Profile Frame Layout */
 .phone-mock {
     background: rgba(23, 32, 48, 0.7);
     padding: 24px;
@@ -28,13 +30,14 @@ h1, h2, h3, p, span, label {
     border: 1px solid rgba(255, 255, 255, 0.08);
     box-shadow: 0 20px 40px rgba(0, 0, 0, 0.5);
     margin-bottom: 25px;
+    margin-top: 15px;
 }
 </style>
 """
 
-# 🎯 FIXED: Changed 'unsafe_with_html' to 'unsafe_allow_html'
 st.markdown(custom_css, unsafe_allow_html=True)
 
+# Main Dashboard Title elements safely outside the styling wrapper loop bounds
 st.title("📸 InstaGrid Layout Previewer")
 st.caption("Engineered by Dilshad • Powered by Streamlit")
 
@@ -45,7 +48,7 @@ if "image_list" not in st.session_state:
 # --- SIDEBAR INTERFACE CONTROLS ---
 st.sidebar.header("⚙️ Grid Control Panel")
 
-# Multi-file Uploader Widget
+# Multi-file Uploader Widget (Now safe from text collisions!)
 uploaded_files = st.sidebar.file_uploader(
     "Upload Feed Photos (Max 12)", 
     type=["png", "jpg", "jpeg"], 
