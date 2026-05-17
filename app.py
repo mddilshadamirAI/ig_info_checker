@@ -1,114 +1,193 @@
 import streamlit as st
 from PIL import Image
+import random
 
-# 🎨 Page Configuration & Title Styling
+# 🎨 Page Configuration & Layout Customizing Engine
 st.set_page_config(
-    page_title="InstaGrid Previewer | Dilshad Pro",
-    page_icon="📸",
-    layout="centered"
+    page_title="InstaGrid Studio Pro | Content Planner",
+    page_icon="🔮",
+    layout="wide" # Switched to wide mode to create a modern 2-column workspace layout
 )
 
-# 🔒 SCOPED CSS: Targets exact structural components to protect native widgets
-custom_css = """
+# 🔒 Pro UI Style Adjustments Sheet Variable
+pro_css = """
 <style>
-/* Targets ONLY the background wrapper panels of the application layout */
 div[data-testid="stAppViewContainer"], .main {
-    background: radial-gradient(circle at top, #1e1b4b, #0f172a, #020617) !important;
+    background: radial-gradient(circle at top left, #1e1b4b, #0b0f19, #020617) !important;
 }
-
-/* Explicitly style text ONLY inside our phone card structure to prevent button bugs */
-.phone-mock h1, .phone-mock h2, .phone-mock h3, .phone-mock p, .phone-mock span {
-    color: #f8fafc !important;
-    font-family: '-apple-system', BlinkMacSystemFont, sans-serif !important;
+h1, h2, h3, h4, p, span, label, div[data-testid="stMarkdownContainer"] p {
+    color: #f1f5f9 !important;
+    font-family: '-apple-system', BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif !important;
 }
-
-/* Clean Custom Glassmorphism Profile Frame Layout */
-.phone-mock {
-    background: rgba(23, 32, 48, 0.7);
+.phone-frame {
+    background: #090d16;
     padding: 24px;
-    border-radius: 30px;
-    border: 1px solid rgba(255, 255, 255, 0.08);
-    box-shadow: 0 20px 40px rgba(0, 0, 0, 0.5);
-    margin-bottom: 25px;
-    margin-top: 15px;
+    border-radius: 36px;
+    border: 2px solid rgba(255, 255, 255, 0.08);
+    box-shadow: 0 30px 60px rgba(0, 0, 0, 0.8);
+    max-width: 410px;
+    margin: 0 auto;
+}
+.meta-card {
+    background: rgba(30, 41, 59, 0.4);
+    backdrop-filter: blur(12px);
+    border-radius: 20px;
+    border: 1px solid rgba(255, 255, 255, 0.05);
+    padding: 25px;
+    margin-bottom: 20px;
+}
+.insta-badge {
+    background: linear-gradient(45deg, #f09433 0%, #e6683c 25%, #dc2743 50%, #cc2366 75%, #bc1888 100%);
+    color: white;
+    padding: 2px 8px;
+    border-radius: 6px;
+    font-size: 11px;
+    font-weight: bold;
 }
 </style>
 """
+st.markdown(pro_css, unsafe_allow_html=True)
 
-st.markdown(custom_css, unsafe_allow_html=True)
+# App Core Memory Framework
+if "grid_images" not in st.session_state:
+    st.session_state.grid_images = []
+if "content_metadata" not in st.session_state:
+    st.session_state.content_metadata = {}
 
-# Main Dashboard Title elements safely outside the styling wrapper loop bounds
-st.title("📸 InstaGrid Layout Previewer")
-st.caption("Engineered by Dilshad • Powered by Streamlit")
+# Pre-programmed Hashtag Pools for the Mix Engine Tool
+HASHTAG_POOLS = {
+    "Tech & Coding": ["#developer", "#programming", "#codinglife", "#javascript", "#python", "#webdev", "#softwareengineering", "#buildinpublic", "#uidesign"],
+    "Business & SaaS": ["#entrepreneur", "#saas", "#solopreneur", "#indiehackers", "#marketingtips", "#growthhacking", "#startup", "#founder", "#businessowner"],
+    "Local Service Shop": ["#acrepair", "#hvac", "#localservice", "#airconditioning", "#maintenance", "#homeservice", "#smallbusiness", "#supportlocal"]
+}
 
-# Initialize session state tracking list for images if not already created
-if "image_list" not in st.session_state:
-    st.session_state.image_list = []
-
-# --- SIDEBAR INTERFACE CONTROLS ---
-st.sidebar.header("⚙️ Grid Control Panel")
-
-# Multi-file Uploader Widget (Now safe from text collisions!)
-uploaded_files = st.sidebar.file_uploader(
-    "Upload Feed Photos (Max 12)", 
-    type=["png", "jpg", "jpeg"], 
-    accept_multiple_files=True
-)
-
-# Process uploaded images dynamically into session storage state
-if uploaded_files:
-    new_images = []
-    for file in uploaded_files:
-        img = Image.open(file)
-        new_images.append(img)
-    st.session_state.image_list = new_images
-
-# Button to reset grid canvas parameters
-if st.sidebar.button("🗑️ Clear Current Grid"):
-    st.session_state.image_list = []
-    st.rerun()
-
-# --- MAIN COMPONENT PHONE DISPLAY VIEWPORT ---
-st.markdown('<div class="phone-mock">', unsafe_allow_html=True)
-
-# Mock Instagram Profile Header Segment
-col_av, col_txt = st.columns([1, 4])
-with col_av:
-    st.subheader("👤") 
-with col_txt:
-    st.markdown("### **@your_brand_feed**")
-    st.markdown(f"**{len(st.session_state.image_list)}** posts &nbsp;&nbsp;•&nbsp;&nbsp; **12.5K** followers &nbsp;&nbsp;•&nbsp;&nbsp; **482** following")
-    st.caption("Grid Layout Planner. Arrange your images in the sidebar to view the final grid mapping!")
-
+# --- MAIN PAGE HEADLINE ---
+st.title("🔮 InstaGrid Studio Pro")
+st.caption("The Premium Content Organizer & Feed Visualization Suite • Engineered by Dilshad")
 st.markdown("---")
 
-# 🖼️ THE ESSENTIAL 3-COLUMN IMAGE STREAM GRID MATRIX
-if st.session_state.image_list:
-    total_pics = len(st.session_state.image_list)
+# Split the Workspace into Two Clean Master Horizontal Structural Lanes
+workspace_left, workspace_right = st.columns([1.1, 1.3], gap="large")
+
+# ==============================================================================
+# 📱 LEFT COLUMN: THE REALISTIC PHONE PREVIEW CANVAS
+# ==============================================================================
+with workspace_left:
+    st.subheader("📱 Feed Viewport Layout")
     
-    # Calculate rows to cleanly display items in blocks of 3
-    for i in range(0, total_pics, 3):
-        row_images = st.session_state.image_list[i:i+3]
-        cols = st.columns(3) # Forces an exact rigid 3-column split
+    # Render Interactive Phone Frame Wrapper Container Block
+    st.markdown('<div class="phone-frame">', unsafe_allow_html=True)
+    
+    # Mock Instagram Top Row Title Header Layout
+    hdr_1, hdr_2 = st.columns([3, 1])
+    with hdr_1:
+        st.markdown('### **dilshad.dev** <span class="insta-badge">PRO</span>', unsafe_allow_html=True)
+    with hdr_2:
+        grid_lines = st.toggle("Grid Borders", value=True)
         
-        for idx, img in enumerate(row_images):
-            with cols[idx]:
-                st.image(img, use_container_width=True)
-else:
-    st.info("💡 Open the left sidebar panel menu to upload images and generate your visual feed preview model instantly!")
-
-st.markdown('</div>', unsafe_allow_html=True)
-
-# --- REORDERING UTILITY TOOL BLOCK CONTROLLER SYSTEM ---
-if len(st.session_state.image_list) > 1:
-    st.markdown("### 🔄 Adjust Position Index Order")
-    st.caption("Move your uploaded images around by changing their sequential positions:")
+    # Profile Sub-Header Statistics Grid Row Block Elements
+    av_col, stat_col = st.columns([1, 3])
+    with av_col:
+        st.markdown("⚡")
+    with stat_col:
+        post_count = len(st.session_state.grid_images)
+        st.markdown(f"**{post_count}** posts &nbsp;&nbsp;•&nbsp;&nbsp; **18.4K** followers &nbsp;&nbsp;•&nbsp;&nbsp; **512** following")
     
-    img_index = st.number_input("Select Image Index to move", min_value=0, max_value=len(st.session_state.image_list)-1, step=1, value=0)
-    new_position = st.slider("Move selected item to target position", min_value=0, max_value=len(st.session_state.image_list)-1, value=int(img_index))
+    st.markdown("**Dilshad | Product Engineer**")
+    st.caption("Building utility micro-SaaS layers for high-performance creative workflows.")
+    st.markdown("---")
     
-    if st.button("Confirm Order Swap"):
-        moving_item = st.session_state.image_list.pop(img_index)
-        st.session_state.image_list.insert(new_position, moving_item)
-        st.success("Grid order updated successfully!")
-        st.rerun()
+    # Render Interactive Image Matrix System
+    if st.session_state.grid_images:
+        for row_idx in range(0, len(st.session_state.grid_images), 3):
+            row_slice = st.session_state.grid_images[row_idx:row_idx+3]
+            grid_cols = st.columns(3, gap="small" if grid_lines else "none")
+            
+            for col_idx, img_obj in enumerate(row_slice):
+                global_index = row_idx + col_idx
+                with grid_cols[col_idx]:
+                    st.image(img_obj, use_container_width=True)
+                    st.markdown(f"<center><code style='color:#64748b;'>Slot {global_index}</code></center>", unsafe_allow_html=True)
+    else:
+        st.info("💡 Use the Control Deck panel to dump creative photo assets here.")
+        
+    st.markdown('</div>', unsafe_allow_html=True)
+
+# ==============================================================================
+# ⚙️ RIGHT COLUMN: THE CREATIVE PRODUCTION ENGINE
+# ==============================================================================
+with workspace_right:
+    st.subheader("⚙️ Studio Control Deck")
+    
+    # SECTION 1: ASSET MANAGEMENT CARD FRAME PANEL LINK
+    with st.container(border=True):
+        st.markdown("#### 📁 Media Resource Ingestion")
+        uploaded_files = st.file_uploader(
+            "Drop your visual composition files here:", 
+            type=["png", "jpg", "jpeg"], 
+            accept_multiple_files=True,
+            key="studio_uploader"
+        )
+        
+        if uploaded_files:
+            new_list = []
+            for f in uploaded_files:
+                new_list.append(Image.open(f))
+            st.session_state.grid_images = new_list
+            
+        if st.button("🗑️ Reset Media Canvas", use_container_width=True):
+            st.session_state.grid_images = []
+            st.session_state.content_metadata = {}
+            st.rerun()
+
+    # SECTION 2: INTERACTIVE TIME-AXIS REORDER ENGINE MAPPING BLOCK
+    if len(st.session_state.grid_images) > 1:
+        with st.container(border=True):
+            st.markdown("#### 🔄 Sequence Timeline Re-Order Tool")
+            sel_idx = st.number_input("Select target slot index to shift:", min_value=0, max_value=len(st.session_state.grid_images)-1, step=1, value=0)
+            target_pos = st.slider("Drag target slot to its new lane index placement:", min_value=0, max_value=len(st.session_state.grid_images)-1, value=int(sel_idx))
+            
+            if st.button("Apply New Timeline Order", use_container_width=True):
+                popped_card = st.session_state.grid_images.pop(sel_idx)
+                st.session_state.grid_images.insert(target_pos, popped_card)
+                st.toast("Timeline array re-indexed successfully!", icon="✅")
+                st.rerun()
+
+    # SECTION 3: WORKSPACE SCHEDULER & HASHTAG GENERATOR META ENGINE PANEL
+    if st.session_state.grid_images:
+        with st.container(border=True):
+            st.markdown("#### 📝 Metadata Architect & Copywriter Hub")
+            edit_slot = st.selectbox("Choose a layout slot to write copy for:", options=range(len(st.session_state.grid_images)))
+            
+            # Initialize slot dictionary memories structures paths models keys loops
+            if edit_slot not in st.session_state.content_metadata:
+                st.session_state.content_metadata[edit_slot] = {"caption": "", "date": None, "hashtags": ""}
+            
+            current_meta = st.session_state.content_metadata[edit_slot]
+            
+            # Smart Copywriting Features Inputs
+            caption_text = st.text_area("Draft Instagram Caption Copy text:", value=current_meta["caption"], height=100)
+            st.caption(f"✍️ Character Length Tracker: `{len(caption_text)}` characters (Instagram Maximum Limit boundary: 2200)")
+            
+            # Interactive Smart AI Hashtag Builder Injection Selector Array
+            niche_choice = st.selectbox("Select Target Campaign Niche Audience:", options=["None"] + list(HASHTAG_POOLS.keys()))
+            if niche_choice != "None" and st.button("⚡ Inject Optimized Hashtag Mix"):
+                chosen_pool = HASHTAG_POOLS[niche_choice]
+                random_sample = random.sample(chosen_pool, min(len(chosen_pool), 5))
+                generated_string = " " + " ".join(random_sample)
+                caption_text += generated_string
+                st.rerun()
+                
+            schedule_date = st.date_input("Target Post Deployment Date Target line:", value=current_meta["date"])
+            
+            # Save local changes values loops inside tracking state configuration registers keys
+            st.session_state.content_metadata[edit_slot] = {
+                "caption": caption_text,
+                "date": schedule_date,
+                "hashtags": ""
+            }
+            
+            # Complete Output Export View Summary Card Module Display
+            st.markdown("---")
+            st.markdown(f"📡 **Active Slot {edit_slot} Schedule Target Blueprint Export Summary:**")
+            st.code(f"📅 Target Post Date: {schedule_date}\n📝 Final Caption Text String Output:\n{caption_text}", language="text")
