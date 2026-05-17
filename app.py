@@ -32,8 +32,8 @@ h1, h2, h3, p, span, label {
 </style>
 """
 
-# Render the style block safely
-st.markdown(custom_css, unsafe_with_html=True)
+# 🎯 FIXED: Changed 'unsafe_with_html' to 'unsafe_allow_html'
+st.markdown(custom_css, unsafe_allow_html=True)
 
 st.title("📸 InstaGrid Layout Previewer")
 st.caption("Engineered by Dilshad • Powered by Streamlit")
@@ -63,11 +63,10 @@ if uploaded_files:
 # Button to reset grid canvas parameters
 if st.sidebar.button("🗑️ Clear Current Grid"):
     st.session_state.image_list = []
-    st.preload = True
     st.rerun()
 
 # --- MAIN COMPONENT PHONE DISPLAY VIEWPORT ---
-st.markdown('<div class="phone-mock">', unsafe_with_html=True)
+st.markdown('<div class="phone-mock">', unsafe_allow_html=True)
 
 # Mock Instagram Profile Header Segment
 col_av, col_txt = st.columns([1, 4])
@@ -95,7 +94,7 @@ if st.session_state.image_list:
 else:
     st.info("💡 Open the left sidebar panel menu to upload images and generate your visual feed preview model instantly!")
 
-st.markdown('</div>', unsafe_with_html=True)
+st.markdown('</div>', unsafe_allow_html=True)
 
 # --- REORDERING UTILITY TOOL BLOCK CONTROLLER SYSTEM ---
 if len(st.session_state.image_list) > 1:
