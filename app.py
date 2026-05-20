@@ -61,18 +61,25 @@ h1, h2, h3, h4, p, span, label {
 # ==============================================================================
 # 📡 TRACK 1: THE LIVE VISITOR VIEW (When someone clicks your Instagram link)
 # ==============================================================================
-# Check if someone arrived at the app via a shared user link
-query_params = st.experimental_get_query_params()
+# Modern dictionary-like query parameter reading interface
+try:
+    current_params = st.query_params
+except Exception:
+    current_params = {}
 
-if "user" in query_params:
-    target_user = query_params["user"]
+# Check if a user parameter exists in the live URL
+if "user" in current_params:
+    target_user = current_params["user"]
+    user_bio = current_params.get("bio", "Welcome to my link hub!")
     
-    # Read the data out of the shared query state safely
-    user_bio = query_params.get("bio", "Welcome to my link hub!")
+    # Safely extract titles and URLs out of the parameters framework
+    # Modern query params handle lists or comma values cleanly
+    raw_titles = current_params.get_all("t") if hasattr(current_params, "get_all") else current_params.get("t", [])
+    raw_urls = current_params.get_all("u") if hasattr(current_params, "get_all") else current_params.get("u", [])
     
-    # Parse the compiled links out of the URL string parameters
-    raw_titles = query_params.get_all("t")
-    raw_urls = query_params.get_all("u")
+    # Fallback checking if params came in as single text items instead of lists
+    if isinstance(raw_titles, str): raw_titles = [raw_titles]
+    if isinstance(raw_urls, str): raw_urls = [raw_urls]
     
     # Render the standalone mobile page layout for visitors
     st.markdown('<div style="margin-top: 40px;"></div>', unsafe_allow_html=True)
@@ -89,8 +96,6 @@ if "user" in query_params:
         st.caption("No active links configured for this profile yet.")
         
     st.markdown('</div>', unsafe_allow_html=True)
-    
-    # Hide the rest of the workspace creator panel for casual visitors
     st.stop()
 
 
@@ -137,6 +142,7 @@ with right_col:
         if st.button("Save Link Into Dashboard Grid", use_container_width=True):
             if t_input and u_input:
                 st.session_state.builder_links.append({"title": t_input, "url": u_input})
+                st.io_shapes = [] # Clear form data vectors
                 st.rerun()
                 
     with st.container(border=True):
@@ -155,9 +161,9 @@ with right_col:
     # ==============================================================================
     with st.container(border=True):
         st.markdown("#### 🚀 Your Instant Live Link Generation Area")
-        st.caption("This link is live right now! Copy it and drop it directly into your Instagram bio list. No deployment necessary.")
+        st.caption("This link is live right now! Copy it and drop it directly into your Instagram bio list.")
         
-        # Build out the target live dashboard tracking link using URL parameter structures
+        # Build out the tracking link using URL parameter structures
         base_live_url = "https://your-app-name.streamlit.app/"
         
         # Build query parameters strings directly
@@ -168,4 +174,4 @@ with right_col:
         full_live_share_link = base_live_url + url_arguments
         
         st.text_input("🔗 Click to Copy Live Master Instagram Bio Link:", value=full_live_share_link, readonly=True)
-        st.info("💡 Note: Once you deploy this code once onto Community Cloud, your app acts as its own hosting server. When you update details, the link updates itself automatically!")
+        st.info("💡 Note: Remember to swap out 'https://your-app-name.streamlit.app/' with your actual live Streamlit dashboard share URL link!")
