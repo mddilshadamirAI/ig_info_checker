@@ -1,14 +1,14 @@
 import streamlit as st
-import io
+import random
 
-# Page Config Matrix
+# Page configuration
 st.set_page_config(
-    page_title="BioLink Forge Pro | Instagram Creator Engine",
+    page_title="InstaGrid Bio OS",
     page_icon="🔮",
     layout="wide"
 )
 
-# Clean, professional background styling for the Streamlit deck
+# Custom Clean CSS Style Matrix
 st.markdown("""
 <style>
 div[data-testid="stAppViewContainer"], .main {
@@ -18,19 +18,18 @@ h1, h2, h3, h4, p, span, label {
     color: #f8fafc !important;
     font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif !important;
 }
-.phone-preview-container {
+.phone-view {
     background: #020617;
     padding: 30px 20px;
     border-radius: 36px;
-    border: 3px solid #1e293b;
-    max-width: 380px;
+    border: 2px solid #1e293b;
+    max-width: 360px;
     margin: 0 auto;
     text-align: center;
-    box-shadow: 0 20px 50px rgba(0,0,0,0.5);
 }
-.preview-avatar {
-    width: 90px;
-    height: 90px;
+.avatar-icon {
+    width: 80px;
+    height: 80px;
     background: linear-gradient(45deg, #f09433, #dc2743, #cc2366);
     border-radius: 50%;
     margin: 0 auto 15px auto;
@@ -38,208 +37,135 @@ h1, h2, h3, h4, p, span, label {
     align-items: center;
     justify-content: center;
     font-size: 32px;
-    color: white;
 }
-.preview-link-card {
-    background: rgba(255, 255, 255, 0.07);
-    border: 1px solid rgba(255, 255, 255, 0.15);
-    padding: 12px;
-    border-radius: 12px;
-    margin: 10px 0;
+.bio-link {
+    display: block;
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid rgba(255, 255, 255, 0.1);
     color: #ffffff !important;
     text-decoration: none;
-    display: block;
+    padding: 14px;
+    margin: 12px 0;
+    border-radius: 12px;
     font-weight: 500;
     font-size: 14px;
-    transition: all 0.2s;
+    border-left: 4px solid #06b6d4;
+    transition: background 0.2s;
+}
+.bio-link:hover {
+    background: rgba(255, 255, 255, 0.1);
 }
 </style>
 """, unsafe_allow_html=True)
 
-# App Memory State Allocation
-if "links_list" not in st.session_state:
-    st.session_state.links_list = [
-        {"title": "💻 Explore My GitHub Portfolio", "url": "https://github.com/"},
-        {"title": "🚀 Check Out My Active SaaS Apps", "url": "https://streamlit.io"},
+# ==============================================================================
+# 📡 TRACK 1: THE LIVE VISITOR VIEW (When someone clicks your Instagram link)
+# ==============================================================================
+# Check if someone arrived at the app via a shared user link
+query_params = st.query_parameters
+
+if "user" in query_params:
+    target_user = query_params["user"]
+    
+    # Read the data out of the shared query state safely
+    user_bio = query_params.get("bio", "Welcome to my link hub!")
+    
+    # Parse the compiled links out of the URL string parameters
+    raw_titles = query_params.get_all("t")
+    raw_urls = query_params.get_all("u")
+    
+    # Render the standalone mobile page layout for visitors
+    st.markdown('<div style="margin-top: 40px;"></div>', unsafe_allow_html=True)
+    st.markdown('<div class="phone-view">', unsafe_allow_html=True)
+    st.markdown('<div class="avatar-icon">🚀</div>', unsafe_allow_html=True)
+    st.markdown(f'<h3>@{target_user}</h3>', unsafe_allow_html=True)
+    st.markdown(f'<p style="color: #94a3b8; font-size:14px;">{user_bio}</p>', unsafe_allow_html=True)
+    st.markdown('<div style="border-bottom: 1px solid #1e293b; margin-bottom: 20px;"></div>', unsafe_allow_html=True)
+    
+    if raw_titles and raw_urls:
+        for title, url in zip(raw_titles, raw_urls):
+            st.markdown(f'<a class="bio-link" href="{url}" target="_blank">{title}</a>', unsafe_allow_html=True)
+    else:
+        st.caption("No active links configured for this profile yet.")
+        
+    st.markdown('</div>', unsafe_allow_html=True)
+    
+    # Hide the rest of the workspace creator panel for casual visitors
+    st.stop()
+
+
+# ==============================================================================
+# ⚙️ TRACK 2: THE CREATOR DASHBOARD PANEL (For building your page)
+# ==============================================================================
+if "builder_links" not in st.session_state:
+    st.session_state.builder_links = [
+        {"title": "💻 Check my GitHub", "url": "https://github.com"},
+        {"title": "🚀 Live Streamlit App", "url": "https://streamlit.io"}
     ]
 
-st.title("🔮 BioLink Forge Pro")
-st.caption("Build, Simulate, and Export Custom High-Converting Instagram Bio-Link Landing Pages • Engineered by Dilshad")
+st.title("🔮 InstaGrid Direct Link Dashboard")
+st.caption("Generate instant live links for your Instagram Bio without hosting or code handles.")
 st.markdown("---")
 
-# Main Page Split Horizontal Columns
-preview_col, engine_col = st.columns([1.1, 1.3], gap="large")
+left_col, right_col = st.columns([1.1, 1.3], gap="large")
 
-# ==============================================================================
-# 📱 LEFT SIDE: LIVE SMARTPHONE PORTFOLIO PREVIEW
-# ==============================================================================
-with preview_col:
-    st.subheader("📱 Live Mobile Preview")
+with left_col:
+    st.subheader("📱 Current Layout Preview")
     
-    # User Input Collection Handles from Sidebar / Controls
-    username = st.text_input("Profile Display Handle:", value="dilshad.dev", max_chars=30)
-    bio_text = st.text_area("Profile Short Bio Text:", value="Building premium web apps and utility micro-SaaS layers.", max_chars=120)
-    theme_color = st.color_picker("Pick Link Highlight Color:", value="#06b6d4")
+    c_user = st.text_input("Choose Username:", value="dilshad.dev")
+    c_bio = st.text_area("Write Profile Bio:", value="Building web utility layers.")
     
-    st.markdown('<div class="phone-preview-container">', unsafe_allow_html=True)
+    st.markdown('<div class="phone-view">', unsafe_allow_html=True)
+    st.markdown('<div class="avatar-icon">🤖</div>', unsafe_allow_html=True)
+    st.markdown(f'<h3>@{c_user}</h3>', unsafe_allow_html=True)
+    st.markdown(f'<p style="color: #94a3b8; font-size:13px;">{c_bio}</p>', unsafe_allow_html=True)
+    st.markdown('<div style="border-bottom: 1px solid #1e293b; margin-bottom: 20px;"></div>', unsafe_allow_html=True)
     
-    # Simulated Device Header Elements
-    st.markdown(f'<div class="preview-avatar">🚀</div>', unsafe_allow_html=True)
-    st.markdown(f'<h3>@{username}</h3>', unsafe_allow_html=True)
-    st.markdown(f'<p style="color: #94a3b8; font-size:13px; margin-bottom:20px;">{bio_text}</p>', unsafe_allow_html=True)
-    st.markdown('<div style="border-bottom: 1px solid #1e293b; margin-bottom:20px;"></div>', unsafe_allow_html=True)
-    
-    # Loop over active state lists and draw links interactively inside the preview
-    for item in st.session_state.links_list:
-        link_html = f"""
-        <a class="preview-link-card" style="border-left: 4px solid {theme_color};" href="{item['url']}" target="_blank">
-            {item['title']}
-        </a>
-        """
-        st.markdown(link_html, unsafe_allow_html=True)
+    for item in st.session_state.builder_links:
+        st.markdown(f'<div class="bio-link">{item["title"]}</div>', unsafe_allow_html=True)
         
     st.markdown('</div>', unsafe_allow_html=True)
 
-# ==============================================================================
-# ⚙️ RIGHT SIDE: LINK LOGIC MANAGEMENT & CLEAN HTML COMPILING
-# ==============================================================================
-with engine_col:
-    st.subheader("⚙️ Link Array Engine & Exporter")
+with right_col:
+    st.subheader("🛠️ Link Management Console")
     
-    # Add link block section handles
     with st.container(border=True):
-        st.markdown("#### ➕ Append Fresh Target Link Asset")
-        new_title = st.text_input("Button Link Title Text:", placeholder="e.g., 🛠️ Hire Me On Freelance Link")
-        new_url = st.text_input("Destination URL Target Link:", placeholder="https://yourwebsite.com")
+        st.markdown("#### ➕ Add Link Customization")
+        t_input = st.text_input("Button Text Display Label:", placeholder="e.g., Portfolio Site")
+        u_input = st.text_input("Full Link Target Destination URL:", placeholder="https://example.com")
         
-        if st.button("Inject Link Node Into Matrix", use_container_width=True):
-            if new_title and new_url:
-                st.session_state.links_list.append({"title": new_title, "url": new_url})
-                st.toast("Link layout array updated locally!", icon="✅")
+        if st.button("Save Link Into Dashboard Grid", use_container_width=True):
+            if t_input and u_input:
+                st.session_state.builder_links.append({"title": t_input, "url": u_input})
                 st.rerun()
-            else:
-                st.error("Please fill out both Title and URL fields.")
-
-    # Current links display database view tracking modules
+                
     with st.container(border=True):
-        st.markdown("#### 📋 Active Link Register Management")
-        if st.session_state.links_list:
-            for idx, item in enumerate(st.session_state.links_list):
-                r_col1, r_col2 = st.columns([3, 1])
-                with r_col1:
-                    st.markdown(f"`Slot {idx}`: **{item['title']}** → *{item['url']}*")
-                with r_col2:
-                    if st.button("🗑️ Purge", key=f"del_{idx}", use_container_width=True):
-                        st.session_state.links_list.pop(idx)
-                        st.rerun()
-        else:
-            st.info("No active redirection links configured. Add one above to populate.")
+        st.markdown("#### 📋 Existing Active Configurations")
+        for idx, item in enumerate(st.session_state.builder_links):
+            col_a, col_b = st.columns([3, 1])
+            with col_a:
+                st.markdown(f"**{item['title']}** → {item['url']}")
+            with col_b:
+                if st.button("Purge", key=f"del_{idx}", use_container_width=True):
+                    st.session_state.builder_links.pop(idx)
+                    st.rerun()
 
     # ==============================================================================
-    # 💾 CORE COMPILER ENGINE: EXPORT TO PURE HTML/CSS FILE
+    # 🔗 DYNAMIC LIVE URL GENERATOR FIELD BUILDER
     # ==============================================================================
     with st.container(border=True):
-        st.markdown("#### 🏁 Compile Production Code Packet")
-        st.caption("Generate clean, standalone, highly performant responsive HTML code you can upload directly to GitHub Pages for your Instagram bio link.")
+        st.markdown("#### 🚀 Your Instant Live Link Generation Area")
+        st.caption("This link is live right now! Copy it and drop it directly into your Instagram bio list. No deployment necessary.")
         
-        # Build dynamic HTML link strings
-        generated_html_links = ""
-        for item in st.session_state.links_list:
-            generated_html_links += f'\n        <a class="link-btn" href="{item["url"]}" target="_blank">{item["title"]}</a>'
+        # Build out the target live dashboard tracking link using URL parameter structures
+        base_live_url = "https://your-app-name.streamlit.app/"
+        
+        # Build query parameters strings directly
+        url_arguments = f"?user={c_user}&bio={c_bio.replace(' ', '+')}"
+        for item in st.session_state.builder_links:
+            url_arguments += f"&t={item['title'].replace(' ', '+')}&u={item['url']}"
             
-        # Complete standalone production template layout
-        raw_production_html = f"""<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>@{username} | My Link Bio Hub</title>
-    <style>
-        body {{
-            background: radial-gradient(circle at top, #0f172a, #020617);
-            color: #ffffff;
-            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            min-height: 100vh;
-            margin: 0;
-            padding: 20px;
-            box-sizing: border-box;
-        }}
-        .container {{
-            width: 100%;
-            max-width: 400px;
-            text-align: center;
-            background: rgba(255, 255, 255, 0.02);
-            border: 1px solid rgba(255, 255, 255, 0.05);
-            padding: 35px 25px;
-            border-radius: 24px;
-            box-shadow: 0 20px 40px rgba(0,0,0,0.4);
-        }}
-        .avatar {{
-            width: 80px;
-            height: 80px;
-            background: linear-gradient(45deg, #f09433, #dc2743, #cc2366);
-            border-radius: 50%;
-            margin: 0 auto 15px auto;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 32px;
-        }}
-        h1 {{
-            font-size: 20px;
-            margin: 10px 0 5px 0;
-            letter-spacing: -0.5px;
-        }}
-        .bio {{
-            font-size: 14px;
-            color: #94a3b8;
-            line-height: 1.5;
-            margin-bottom: 25px;
-        }}
-        .link-btn {{
-            display: block;
-            background: rgba(255, 255, 255, 0.05);
-            border: 1px solid rgba(255, 255, 255, 0.1);
-            border-left: 5px solid {theme_color};
-            color: #ffffff;
-            text-decoration: none;
-            padding: 14px;
-            margin: 12px 0;
-            border-radius: 12px;
-            font-weight: 500;
-            font-size: 15px;
-            transition: transform 0.2s, background 0.2s;
-        }}
-        .link-btn:hover {{
-            transform: scale(1.02);
-            background: rgba(255, 255, 255, 0.1);
-        }}
-    </style>
-</head>
-<body>
-    <div class="container">
-        <div class="avatar">🚀</div>
-        <h1>@{username}</h1>
-        <div class="bio">{bio_text}</div>
-        <div style="border-bottom: 1px solid rgba(255,255,255,0.05); margin-bottom: 20px;"></div>
-        {generated_html_links}
-    </div>
-</body>
-</html>
-"""
-
-        st.code(raw_production_html[:400] + "\n... [Code compiled successfully] ...", language="html")
+        full_live_share_link = base_live_url + url_arguments
         
-        # Binary I/O extraction loop wrapper
-        html_bytes = io.BytesIO(raw_production_html.encode('utf-8'))
-        
-        st.download_button(
-            label="📥 Download Production index.html Web Bundle",
-            data=html_bytes,
-            file_name="index.html",
-            mime="text/html",
-            use_container_width=True
-        )
+        st.text_input("🔗 Click to Copy Live Master Instagram Bio Link:", value=full_live_share_link, readonly=True)
+        st.info("💡 Note: Once you deploy this code once onto Community Cloud, your app acts as its own hosting server. When you update details, the link updates itself automatically!")
