@@ -172,6 +172,5 @@ with right_col:
             url_arguments += f"&t={item['title'].replace(' ', '+')}&u={item['url']}"
             
         full_live_share_link = base_live_url + url_arguments
-        
-        st.text_input("🔗 Click to Copy Live Master Instagram Bio Link:", value=full_live_share_link, readonly=True)
+        st.text_input("🔗 Click to Copy Live Master Instagram Bio Link:", value=full_live_share_link, disabled=True)        
         st.info("💡 Note: Remember to swap out 'https://your-app-name.streamlit.app/' with your actual live Streamlit dashboard share URL link!")
