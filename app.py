@@ -62,7 +62,7 @@ h1, h2, h3, h4, p, span, label {
 # 📡 TRACK 1: THE LIVE VISITOR VIEW (When someone clicks your Instagram link)
 # ==============================================================================
 # Check if someone arrived at the app via a shared user link
-query_params = st.query_parameters
+query_params = st.experimental_get_query_params()
 
 if "user" in query_params:
     target_user = query_params["user"]
